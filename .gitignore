@@ -7,3 +7,4 @@ node_modules
 !/dist/manifest.json
 !/dist/**/*.png
 !/dist/**/*.svg
+.zat

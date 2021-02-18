@@ -32,7 +32,7 @@
             <div class='controls'>
                 <select id='priority' class='priority input-xlarge'>
                     <option value='1'>1 - Critical</option>
-                    <option value='2'>2 - Medium</option>
+                    <option value='2' selected='selected'>2 - Medium</option>
                     <option value='3'>3 - Low</option>
                 </select>
             </div>
