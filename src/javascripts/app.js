@@ -82,26 +82,35 @@ const App = (function() {
     var INSTALLATION_ID = 0,
         //For dev purposes, when using Zat, set this to your current installation id
         VSO_URL_FORMAT = "https://%@.visualstudio.com/DefaultCollection",
-        VSO_API_DEFAULT_VERSION = "1.0",
+        VSO_API_DEFAULT_VERSION = "6.1-preview",
         VSO_API_RESOURCE_VERSION = {},
-        TAG_PREFIX = "vso_wi_",
+        TAG_PREFIX = "azure_wi_",
         DEFAULT_FIELD_SETTINGS = JSON.stringify({
             "System.WorkItemType": {
                 summary: true,
                 details: true,
             },
             "System.Title": {
-                summary: false,
-                details: true,
-            },
-            "System.Description": {
                 summary: true,
                 details: true,
             },
+            "System.Description": {
+                summary: false,
+                details: true,
+            },
+            "System.AssignedTo": {
+                property: "displayName",
+                summary: true,
+                details: true,
+            },
+            "System.State": {
+                summary: true,
+                details: true,
+            }
         }),
         VSO_ZENDESK_LINK_TO_TICKET_PREFIX = "ZendeskLinkTo_Ticket_",
         VSO_ZENDESK_LINK_TO_TICKET_ATTACHMENT_PREFIX = "ZendeskLinkTo_Attachment_Ticket_",
-        VSO_WI_TYPES_WHITE_LISTS = ["Bug", "Product Backlog Item", "User Story", "Requirement", "Issue"],
+        VSO_WI_TYPES_WHITE_LISTS = ["Bug", "Product Backlog Item", "Task"],
         VSO_PROJECTS_PAGE_SIZE = 100; //#endregion
 
     return {
@@ -213,6 +222,9 @@ const App = (function() {
                 return this.vsoRequest(helpers.fmt("/%@/_apis/wit/queries", projectName), {
                     $depth: 2,
                 });
+            },
+            getVsoListById: function(listId) {
+                return this.vsoRequest(helpers.fmt("/_apis/work/processes/lists/%@", listId));                
             },
             getVsoFields: function() {
                 return this.vsoRequest("/_apis/wit/fields");
@@ -570,6 +582,20 @@ const App = (function() {
                     function() {
                         this.drawAreasList($modal.find(".area"), projId);
                         this.drawTypesList($modal.find(".type"), projId);
+
+                        if (this.setting("custom_fields")) {
+                            var customFields = JSON.parse(this.setting("custom_fields"));
+                
+                            customFields.forEach(function(field) {
+                                switch(field.type) {
+                                    case "list":
+                                        {
+                                            this.drawCustomList($modal.find("." + field.class), projId, field.class)
+                                            break;
+                                        }                                        
+                                }
+                            }.bind(this));
+                        }
                         $modal.find(".type").change();
                         this.hideSpinnerInModal($modal);
                     }.bind(this),
@@ -583,12 +609,12 @@ const App = (function() {
         onNewVsoWorkItemTypeChange: function() {
             var $modal = this.$(".newWorkItemModal");
             var project = this.getProjectById($modal.find(".project").val());
-            var workItemType = this.getWorkItemTypeByName(project, $modal.find(".type").val()); //Check if we have severity
+            var workItemType = this.getWorkItemTypeByName(project, $modal.find(".type").val()); //Check if we have priority
 
-            if (this.hasFieldDefined(workItemType, "Microsoft.VSTS.Common.Severity")) {
-                $modal.find(".severityInput").show();
+            if (this.hasFieldDefined(workItemType, "Microsoft.VSTS.Common.Priority")) {
+                $modal.find(".priorityInput").show();
             } else {
-                $modal.find(".severityInput").hide();
+                $modal.find(".priorityInput").hide();
             }
         },
         onNewCopyDescriptionClick: async function(event) {
@@ -748,6 +774,14 @@ const App = (function() {
                 }),
             );
         },
+        drawCustomList: function(select, projectId, propertyName) {
+            var project = this.getProjectById(projectId);
+            select.html(
+                this.renderTemplate("list", {
+                   list : project[propertyName],
+                }),
+            );
+        },
         drawAreasList: function(select, projectId) {
             var project = this.getProjectById(projectId);
             select.html(
@@ -825,12 +859,16 @@ const App = (function() {
                 .find(".modal-footer button")
                 .attr("disabled", "");
         },
-        fillComboWithProjects: function(el) {
+        fillComboWithProjects: function(el, defaultProject) {
             el.html(
                 _.reduce(
                     getVm("projects"),
                     function(options, project) {
-                        return "%@<option value='%@'>%@</option>".fmt(options, project.id, project.name);
+                        var selected = '';
+                        if (project.name === defaultProject) {
+                            selected = "selected=selected";
+                        }
+                        return "%@<option value='%@' %@>%@</option>".fmt(options, project.id, selected, project.name);
                     },
                     "",
                 ),
@@ -893,12 +931,16 @@ const App = (function() {
                     function(value, key) {
                         if (value[type]) {
                             if (_.has(workItem.fields, key)) {
+                                var returnVal = workItem.fields[key];
+                                if (value.property) {
+                                    returnVal = returnVal[value.property];
+                                }                                
                                 return {
                                     refName: key,
                                     name: _.find(getVm("fields"), function(f) {
                                         return f.refName == key;
                                     }).name,
-                                    value: workItem.fields[key],
+                                    value: returnVal,
                                     isHtml: this.isHtmlContentField(key),
                                 };
                             }
@@ -989,6 +1031,25 @@ const App = (function() {
                     project.workItemTypes = this.restrictToAllowedWorkItems(data.value);
                 }.bind(this),
             );
+            
+            if (this.setting("custom_fields")) {
+                var customFields = JSON.parse(this.setting("custom_fields"));
+    
+                customFields.forEach(function(field) {
+                    switch(field.type) {
+                        case "list":
+                            {
+                                this.ajax("getVsoListById", field.value).then(
+                                    function(data) {
+                                        project[field.class] = data.value.items;
+                                    }.bind(this),
+                                );
+                                break;
+                            }
+                    }
+                }.bind(this));
+            }
+
             var loadAreas = this.ajax("getVsoProjectAreas", project.id).then(
                 function(rootArea) {
                     var areas = []; // Flatten areas to format \Area 1\Area 1.1

@@ -115,9 +115,9 @@ const getVm = function(path) {
 var INSTALLATION_ID = 0,
     //For dev purposes, when using Zat, set this to your current installation id
     VSO_URL_FORMAT = "https://%@.visualstudio.com/DefaultCollection",
-    VSO_API_DEFAULT_VERSION = "1.0",
+    VSO_API_DEFAULT_VERSION = "6.1-preview",
     VSO_API_RESOURCE_VERSION = {},
-    TAG_PREFIX = "vso_wi_",
+    TAG_PREFIX = "azure_wi_",
     DEFAULT_FIELD_SETTINGS = JSON.stringify({
         "System.WorkItemType": {
             summary: true,
@@ -134,7 +134,7 @@ var INSTALLATION_ID = 0,
     }),
     VSO_ZENDESK_LINK_TO_TICKET_PREFIX = "ZendeskLinkTo_Ticket_",
     VSO_ZENDESK_LINK_TO_TICKET_ATTACHMENT_PREFIX = "ZendeskLinkTo_Attachment_Ticket_",
-    VSO_WI_TYPES_WHITE_LISTS = ["Bug", "Product Backlog Item", "User Story", "Requirement", "Issue"],
+    VSO_WI_TYPES_WHITE_LISTS = ["Bug", "Product Backlog Item", "Task"],
     VSO_PROJECTS_PAGE_SIZE = 100; //#endregion
 
 // Create a new ZAFClient
@@ -264,7 +264,7 @@ const ModalApp = BaseApp.extend({
         $modal.find(".modal-body").html(this.renderTemplate("link"));
         $modal.find("button.search").show();
         const projectCombo = $modal.find(".project");
-        this.fillComboWithProjects(projectCombo);
+        this.fillComboWithProjects(projectCombo, this.setting("default_project"));
         this.resize({ width: "580px", height: "280px" });
 
         $modal.find(".search").on("click", () => {
@@ -309,6 +309,7 @@ const ModalApp = BaseApp.extend({
         const $modal = this.$("[data-main]");
         $modal.find(".modal-body").html(this.renderTemplate("loading"));
         const data = await this.execQueryOnSidebar(["ajax", "getComments"]);
+        this.lastComment = data.comments[data.comments.length - 1].body;
         var attachments = _.flatten(
             _.map(data.comments, function(comment) {
                 return comment.attachments || [];
@@ -317,18 +318,27 @@ const ModalApp = BaseApp.extend({
         ); // Check if we have a template for decription
 
         var templateDefined = !!this.setting("vso_wi_description_template");
+        var customFields = null;
+
+        if (this.setting("custom_fields")) {
+            customFields = JSON.parse(this.setting("custom_fields"));
+        }
         $modal.find(".modal-body").html(
             this.renderTemplate("new", {
                 attachments: attachments,
                 templateDefined: templateDefined,
+                customFields: customFields
             }),
         );
         $modal.find(".summary").val(getVm("temp[ticket]").subject);
         var projectCombo = $modal.find(".project");
-        this.fillComboWithProjects(projectCombo);
+        this.fillComboWithProjects(projectCombo, this.setting("default_project"));
         $modal.find(".inputVsoProject").on("change", this.onNewVsoProjectChange.bind(this));
-        $modal.find(".copyDescription").on("click", () => {
-            $modal.find(".description").val(getVm("temp[ticket]").description);
+        // $modal.find(".copyDescription").on("click", () => {
+        //     $modal.find(".description").val(getVm("temp[ticket]").description);
+        // });
+        $modal.find(".copyLastComment").on("click", e => {
+            this.onCopyLastCommentClick(e);
         });
         $modal.find(".accept").on("click", () => {
             this.onNewWorkItemAcceptClick();
@@ -356,6 +366,10 @@ const ModalApp = BaseApp.extend({
     onCopyLastCommentClick: function(event) {
         event.preventDefault();
         this.$(".notifyModal")
+            .find("textarea")
+            .val(this.lastComment);
+
+        this.$(".newWorkItemModal")
             .find("textarea")
             .val(this.lastComment);
     },
@@ -612,7 +626,7 @@ const ModalApp = BaseApp.extend({
         }
 
         // read area id
-        const areaId = $modal.find(".area").val(); //check work item type
+        const areaPath = $modal.find(".area").val(); //check work item type
 
         const workItemType = this.getWorkItemTypeByName(proj, $modal.find(".type").val());
         if (!workItemType) {
@@ -631,17 +645,34 @@ const ModalApp = BaseApp.extend({
             this.buildPatchToAddWorkItemField("System.Description", description),
         );
 
-        if (areaId) {
-            operations.push(this.buildPatchToAddWorkItemField("System.AreaId", areaId));
+        if (areaPath) {
+            operations.push(this.buildPatchToAddWorkItemField("System.AreaPath", areaPath));
         }
 
-        if (this.hasFieldDefined(workItemType, "Microsoft.VSTS.Common.Severity") && $modal.find(".severity").val()) {
-            operations.push(this.buildPatchToAddWorkItemField("Microsoft.VSTS.Common.Severity", $modal.find(".severity").val()));
+        if (this.hasFieldDefined(workItemType, "Microsoft.VSTS.Common.Priority") && $modal.find(".priority").val()) {
+            operations.push(this.buildPatchToAddWorkItemField("Microsoft.VSTS.Common.Priority", $modal.find(".priority").val()));
         }
 
         if (this.hasFieldDefined(workItemType, "Microsoft.VSTS.TCM.ReproSteps")) {
             operations.push(this.buildPatchToAddWorkItemField("Microsoft.VSTS.TCM.ReproSteps", description));
         } 
+
+        // Custom fields which are configurable in settings
+        if (this.setting("custom_fields")) {
+            var customFields = JSON.parse(this.setting("custom_fields"));
+
+            customFields.forEach(function(field) {
+                switch(field.type) {
+                    case "list":
+                        {
+                            if (this.hasFieldDefined(workItemType, field.name) && $modal.find("." + field.class).val()) {
+                                operations.push(this.buildPatchToAddWorkItemField(field.name, $modal.find("." + field.class).val()));
+                            }
+                            break;                        
+                        }
+                }
+            }.bind(this));
+        }       
         
         //Set tag
         if (this.setting("vso_tag")) {
@@ -849,6 +880,22 @@ const ModalApp = BaseApp.extend({
                 function() {
                     this.drawAreasList($modal.find(".area"), projId);
                     this.drawTypesList($modal.find(".type"), projId);
+                    
+                    if (this.setting("custom_fields")) {
+                        var customFields = JSON.parse(this.setting("custom_fields"));
+
+                        customFields.forEach(function(field) {
+                            switch(field.type) {
+                                case "list":
+                                    {
+                                        console.log("before drawcustomlist: "+ field.class);
+                                        this.drawCustomList($modal.find("." + field.class), projId, field.class)
+                                        break;
+                                    }
+                            }
+                        }.bind(this));
+                    }
+
                     $modal.find(".type").change();
                     this.hideBusy();
                 }.bind(this),
@@ -860,12 +907,16 @@ const ModalApp = BaseApp.extend({
                 }.bind(this),
             );
     },
-    fillComboWithProjects: function(el) {
+    fillComboWithProjects: function(el, defaultProject) {
         el.html(
             _.reduce(
                 getVm("projects"),
                 function(options, project) {
-                    return "%@<option value='%@'>%@</option>".fmt(options, project.id, project.name);
+                    var selected = '';
+                    if (project.name === defaultProject) {
+                        selected = "selected=selected";
+                    }
+                    return "%@<option value='%@' %@>%@</option>".fmt(options, project.id, selected, project.name);
                 },
                 "",
             ),
@@ -883,13 +934,36 @@ const ModalApp = BaseApp.extend({
 
         const areaData = await this.execQueryOnSidebar(["ajax", "getVsoProjectAreas", project.id]);
         var areas = []; // Flatten areas to format \Area 1\Area 1.1
+        
+        if (this.setting("custom_fields")) {
+            var customFields = JSON.parse(this.setting("custom_fields"));
+
+            await customFields.reduce(async (memo, field) => {
+                await memo;
+                switch(field.type) {
+                    case "list":
+                        {
+                            var newField = await this.execQueryOnSidebar(["ajax", "getVsoListById", field.value]);
+                            project[field.class] = newField.items;
+                            break;
+                        }
+                }
+            }, undefined);
+        }
 
         const visitArea = function(area, currentPath) {
             currentPath = currentPath ? currentPath + "\\" : "";
             currentPath = currentPath + area.name;
+            var selected = '';
+            
+            if (currentPath === this.setting("default_area")) {
+                selected = "selected=selected";
+            }
+
             areas.push({
                 id: area.id,
                 name: currentPath,
+                selected: selected
             });
 
             if (area.children && area.children.length > 0) {
@@ -897,14 +971,15 @@ const ModalApp = BaseApp.extend({
                     visitArea(child, currentPath);
                 });
             }
-        };
+        }.bind(this);
 
         visitArea(areaData);
         project.areas = _.sortBy(areas, function(area) {
             return area.name;
         });
-
+       
         project.metadataLoaded = true;
+
         done(); // set project back to localstorage
     },
 
@@ -957,11 +1032,20 @@ const ModalApp = BaseApp.extend({
         var [project, done] = this.getProjectById(projectId);
         select.html(
             this.renderTemplate("areas", {
-                areas: project.areas,
+                areas: project.areas
             }),
         );
         done();
     },
+    drawCustomList: function(select, projectId, propertyName) {
+        var [project, done] = this.getProjectById(projectId);
+        select.html(
+            this.renderTemplate("list", {
+               list : project[propertyName],
+            }),
+        );
+        done();
+    },    
     showErrorInModal: function($modal, err) {
         if ($modal.find(".modal-body .errors")) {
             $modal
@@ -990,12 +1074,16 @@ const ModalApp = BaseApp.extend({
                 function(value, key) {
                     if (value[type]) {
                         if (_.has(workItem.fields, key)) {
+                            var returnVal = workItem.fields[key];
+                            if (value.property) {
+                                returnVal = returnVal[value.property];
+                            }                            
                             return {
                                 refName: key,
                                 name: _.find(getVm("fields"), function(f) {
                                     return f.refName == key;
                                 }).name,
-                                value: workItem.fields[key],
+                                value: returnVal,
                                 isHtml: this.isHtmlContentField(key),
                             };
                         }

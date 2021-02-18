@@ -1,7 +1,6 @@
 {
   "author": {
-    "name": "Microsoft",
-    "email": "vsointegration@microsoft.com"
+    "name": "jcuzzi"    
   },
   "location": {
     "support": {
@@ -12,13 +11,30 @@
   "singleInstall": true,
   "private": true,
   "frameworkVersion": "2.0",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "parameters": [
     {
       "name": "vso_account",
       "type": "text",
       "required": true
     },
+    {
+      "name": "custom_fields",
+      "type": "multiline",
+      "required": false
+    },    
+    {
+      "name": "default_project",
+      "type": "text",
+      "required": false,
+      "default": "EMS"
+    },
+    {
+      "name": "default_area",
+      "type": "text",
+      "required": false,
+      "default": "EMS\\Support L3 - Active Customers"
+    },  
     {
       "name": "vso_tag",
       "type": "text",
@@ -27,8 +43,8 @@
     },
     {
       "name": "vso_field_settings",
-      "type": "hidden",
-      "required": false
+      "type": "multiline",
+      "required": false      
     },
     {
       "name": "vso_wi_description_template",

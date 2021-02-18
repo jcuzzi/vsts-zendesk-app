@@ -1,0 +1,3 @@
+{{#each list}}
+<option value="{{this}}">{{this}}</option>
+{{/each}}

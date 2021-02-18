@@ -9,7 +9,7 @@
         <div class='control-group'>
             <label class='control-label' for='project'>{{t "modals.new.fields.project"}}:</label>
             <div class='controls'>
-                <select id='project' class='project input-xlarge inputVsoProject'>
+                <select id='project' class='project input-xlarge inputVsoProject' disabled='disabled'>
                 </select>
             </div>
         </div>
@@ -17,27 +17,35 @@
         <div class='control-group'>
             <label class='control-label' for='area'>{{t "modals.new.fields.area"}}</label>
             <div class='controls'>
-                <select id='area' class='area input-xlarge'></select>
+                <select id='area' class='area input-xlarge' disabled='disabled'></select>
             </div>
         </div>
         
         <div class='control-group'>
             <label class='control-label' for='type'>{{t "modals.new.fields.type"}}</label>
             <div class='controls'>
-                <select id='type' class='type input-xlarge'></select>
+                <select id='type' class='type input-xlarge' disabled='disabled'></select>
             </div>
         </div>
-        <div class='control-group severityInput'>
-            <label class='control-label' for='severity'>{{t "modals.new.fields.severity"}}</label>
+        <div class='control-group priorityInput'>
+            <label class='control-label' for='priority'>{{t "modals.new.fields.priority"}}</label>
             <div class='controls'>
-                <select id='severity' class='severity input-xlarge'>
-                    <option value='1 - Critical'>1 - Critical</option>
-                    <option value='2 - High'>2 - High</option>
-                    <option value='3 - Medium'>3 - Medium</option>
-                    <option value='4 - Low'>4 - Low</option>
+                <select id='priority' class='priority input-xlarge'>
+                    <option value='1'>1 - Critical</option>
+                    <option value='2'>2 - Medium</option>
+                    <option value='3'>3 - Low</option>
                 </select>
             </div>
         </div>
+
+        {{#each customFields}}
+        <div class='control-group'>
+            <label class='control-label' for='{{class}}'>{{label}}</label>
+            <div class='controls'>
+                <select id='{{class}}' class='{{class}} input-xlarge'></select>
+            </div>
+        </div>
+        {{/each}}
 
         <div class='control-group'>
             <label class='control-label' for='summary'>{{t "modals.new.fields.summary"}}</label>
@@ -50,7 +58,7 @@
             <label class='control-label' for='description'>{{t "modals.new.fields.description"}}</label>
             <div class='controls'>
                 <textarea id='description' class='description input-xxlarge'></textarea>
-                <a href="#" class="desc-action copyDescription">{{t "modals.new.copyDescription"}}</a>
+                <a href="#" class="desc-action copyLastComment">{{t "modals.new.copyLastComment"}}</a>
                 {{#if templateDefined}}
                 | <a href="#" class="desc-action copyTemplate">{{t "modals.new.copyTemplate"}}</a>
                 {{/if}}

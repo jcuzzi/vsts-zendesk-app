@@ -1,14 +1,13 @@
 {
   "author": {
-    "name": "Microsoft",
-    "email": "vsointegration@microsoft.com"
+    "name": "jcuzzi"
   },
   "bugs": {
-    "url": "https://github.com/Microsoft/vsts-zendesk-app/issues"
+    "url": "https://github.com/jcuzzi/vsts-zendesk-app/issues"
   },
   "bundleDependencies": false,
   "deprecated": false,
-  "description": "Visual Studio Team Services App for Zendesk",
+  "description": "Azure DevOps App for Zendesk",
   "devDependencies": {
     "babel-core": "^6.25.0",
     "babel-eslint": "^7.2.3",
@@ -38,7 +37,7 @@
     "url-loader": "^0.5.9",
     "webpack": "^3.5.1"
   },
-  "homepage": "https://github.com/Microsoft/vsts-zendesk-app",
+  "homepage": "https://github.com/jcuzzi/vsts-zendesk-app",
   "keywords": [
     "microsoft",
     "tfs",
@@ -48,11 +47,11 @@
   "name": "vsts-zendesk-app",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Microsoft/vsts-zendesk-app"
+    "url": "https://github.com/jcuzzi/vsts-zendesk-app"
   },
   "scripts": {
     "build": "webpack -p",
     "watch": "webpack --watch"
   },
-  "version": "0.6.2"
+  "version": "0.6.3"
 }
