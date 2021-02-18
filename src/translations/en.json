@@ -7,10 +7,28 @@
                 "helpText":
                     "Enter your Azure DevOps subdomain (part before visualstudio.com). Learn more by visiting http://go.microsoft.com/fwlink/?LinkID=396756"
             },
+            "custom_fields": {
+                "label": "Custom Field definition for new work items",
+                "helpText":
+                    "Array of JSON objects with specific attributes. See readme here: https://github.com/jcuzzi/vsts-zendesk-app"
+            },
+            "default_project": {
+                "label": "Default Azure DevOps project to select for new work items",
+                "helpText": "Enter the default Azure DevOps project to select for new work items. If empty, there is no default."
+            },
+            "default_area": {
+                "label": "Default Azure DevOps area to select for new work items",
+                "helpText": "Enter the default Azure DevOps area to select for new work items. If empty, there is no default."
+            },
             "vso_tag": {
                 "label": "Azure DevOps work item tag",
                 "helpText":
                     "Enter the tag you want to add to each Azure DevOps linked work item. If empty, no tag will be added."
+            },
+            "vso_field_settings": {
+                "label": "Display settings for linked work items",
+                "helpText":
+                    "Array of JavaScript objects with specific attributes. See readme here: https://github.com/jcuzzi/vsts-zendesk-app"
             },
             "vso_wi_description_template": {
                 "label": "Azure DevOps work item description template",
